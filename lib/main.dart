@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:quick_inv/DeleteItemScreen.dart';
 import 'package:quick_inv/add_items/FirstAddPage.dart';
+import 'package:quick_inv/pages/delete_page.dart';
 
 import 'edit_items/FirstUpdatePage.dart';
 
@@ -149,7 +149,7 @@ class ActionsPage extends StatelessWidget {
                 },
                 style: const ButtonStyle(
                     backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.blue)),
+                        WidgetStatePropertyAll<Color>(Colors.blue)),
                 child: const Row(
                   children: [Text("New Item"), Icon(Icons.add)],
                 ),
@@ -167,7 +167,7 @@ class ActionsPage extends StatelessWidget {
                 },
                 style: const ButtonStyle(
                     backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.green)),
+                        WidgetStatePropertyAll<Color>(Colors.green)),
                 child: const Row(
                   children: [Text("Update Item"), Icon(Icons.edit)],
                 ),
@@ -181,11 +181,11 @@ class ActionsPage extends StatelessWidget {
                   Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const DeleteItemScreen()))
+                          builder: (context) => const DeletePage()))
                 },
                 style: const ButtonStyle(
                     backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.red)),
+                        WidgetStatePropertyAll<Color>(Colors.red)),
                 child: const Row(
                   children: [Text("Delete Item"), Icon(Icons.minimize_rounded)],
                 ),
