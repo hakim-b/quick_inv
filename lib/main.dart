@@ -7,6 +7,7 @@ import 'package:quick_inv/screens/edit_items_screen.dart';
 import 'package:quick_inv/screens/delete_items_screen.dart';
 import 'package:quick_inv/screens/inventory_dashboard.dart';
 import 'package:quick_inv/screens/borrowed_items_page.dart';
+import 'package:quick_inv/screens/success_screen.dart';
 import 'package:quick_inv/services/oauth.dart';
 
 final pb = PocketBase('https://pbquickinv.happyfir.com');
