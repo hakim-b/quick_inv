@@ -1,31 +1,85 @@
+// main.dart
 import 'package:flutter/material.dart';
-import 'package:quick_inv/DeleteItemScreen.dart';
-import 'package:quick_inv/add_items/FirstAddPage.dart';
+import 'package:pocketbase/pocketbase.dart';
+import 'package:quick_inv/models/inventory_item.dart';
+import 'package:quick_inv/screens/add_items_screen.dart';
+import 'package:quick_inv/screens/edit_items_screen.dart';
+import 'package:quick_inv/screens/delete_items_screen.dart';
+import 'package:quick_inv/screens/inventory_dashboard.dart';
+import 'package:quick_inv/screens/borrowed_items_page.dart';
+import 'package:quick_inv/services/oauth.dart';
 
-import 'edit_items/FirstUpdatePage.dart';
+final pb = PocketBase('https://pbquickinv.happyfir.com');
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'QuickInv',
+      title: 'Lab Inventory',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.greenAccent),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         useMaterial3: true,
       ),
-      home: MyHomePage(),
+      home: FutureBuilder(
+        future: pb.authStore.isValid ? Future.value(true) : authenticate(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || snapshot.data == false) {
+            return const LoginScreen();
+          }
+          return const MyHomePage();
+        },
+      ),
     );
   }
 }
 
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: FilledButton(
+          onPressed: () async {
+            final success = await authenticate();
+            if (success && context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const MyHomePage()),
+              );
+            }
+          },
+          child: const Text('Login with Discord'),
+        ),
+      ),
+    );
+  }
+}
+
+Future<bool> authenticate() async {
+  try {
+    final result = await authenticateWithPocketBase();
+    return result == 'Exec' || result == 'LabSupervisor';
+  } catch (e) {
+    debugPrint('Authentication error: $e');
+    return false;
+  }
+}
+
 class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -36,18 +90,19 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: <Widget>[WelcomePage(), ActionsPage()][currentPageIdx],
+      body: <Widget>[
+        InventoryDashboard(pb: pb),
+        BorrowedItemsPage(pb: pb),
+        const ActionsPage(),
+        const WelcomePage(), // Add WelcomePage here for navigation
+      ][currentPageIdx],
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentPageIdx,
         destinations: const <Widget>[
-          NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              label: "Home",
-              selectedIcon: Icon(Icons.home)),
-          NavigationDestination(
-              icon: Icon(Icons.lock_outline),
-              label: "Actions",
-              selectedIcon: Icon(Icons.lock)),
+          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          NavigationDestination(icon: Icon(Icons.swap_horiz_outlined), label: "Borrowed"),
+          NavigationDestination(icon: Icon(Icons.build_outlined), label: "Actions"),
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: "Home"),
         ],
         onDestinationSelected: (int index) {
           setState(() {
@@ -55,75 +110,6 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         },
       ),
-    );
-  }
-}
-
-class WelcomePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      children: <Widget>[
-        SizedBox(height: 50),
-        Text(
-          "Welcome to QuickInv! 🗄️",
-          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 30),
-        Row(
-          mainAxisAlignment: MainAxisAlignment
-              .start, // Align children horizontally at the start
-          children: [
-            Padding(
-              padding: EdgeInsets.only(
-                  left: 20.0), // Add left padding to align with the title
-              child: Text(
-                "What are you looking for today?",
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: SearchBar(hintText: "Search..."),
-        ),
-        SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                "Quick Categories",
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        Padding(
-          padding: EdgeInsets.all(10),
-          child: Row(children: [
-            CategoryCard(categoryName: "Capacitors"),
-            CategoryCard(categoryName: "Resistors")
-          ]),
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Text("View all components", style: TextStyle(fontSize: 20)),
-          ),
-        ),
-        Column(
-          children: [
-            ComponentCard(
-                componentName: "Resistor OHM",
-                categoryName: "Resistors",
-                imgThumbnail: "assets/resist.jpg")
-          ],
-        )
-      ],
     );
   }
 }
@@ -138,72 +124,41 @@ class ActionsPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 150,
-              child: FilledButton(
-                onPressed: () => {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const FirstAddPage()))
-                },
-                style: const ButtonStyle(
-                    backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.blue)),
-                child: const Row(
-                  children: [Text("New Item"), Icon(Icons.add)],
-                ),
-              ),
+            _actionButton(context, "New Item", Icons.add, AddItemScreen()),
+            const SizedBox(height: 10),
+            _actionButton(
+              context,
+              "Update Item",
+              Icons.edit,
+              EditItemScreen(item: InventoryItem(id: '097', dateAdded: DateTime.utc(2025,09,05), partNumber: '12345', type: 'Widget', location: 'A1', quantity: 10)),
             ),
             const SizedBox(height: 10),
-            SizedBox(
-              width: 150,
-              child: FilledButton(
-                onPressed: () => {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const FirstUpdatePage()))
-                },
-                style: const ButtonStyle(
-                    backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.green)),
-                child: const Row(
-                  children: [Text("Update Item"), Icon(Icons.edit)],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: 150,
-              child: FilledButton(
-                onPressed: () => {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const DeleteItemScreen()))
-                },
-                style: const ButtonStyle(
-                    backgroundColor:
-                        MaterialStatePropertyAll<Color>(Colors.red)),
-                child: const Row(
-                  children: [Text("Delete Item"), Icon(Icons.minimize_rounded)],
-                ),
-              ),
-            ),
+            _actionButton(context, "Delete Item", Icons.delete, DeleteItemScreen()),
           ],
         ),
       ),
     );
   }
-}
 
+  Widget _actionButton(BuildContext context, String label, IconData icon, Widget screen) {
+    return SizedBox(
+      width: 150,
+      child: FilledButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => screen),
+        ),
+        child: Row(children: [Text(label), Icon(icon)]),
+      ),
+    );
+  }
+}
 class ComponentCard extends StatelessWidget {
   const ComponentCard(
       {super.key,
-      required this.componentName,
-      required this.categoryName,
-      required this.imgThumbnail});
+        required this.componentName,
+        required this.categoryName,
+        required this.imgThumbnail});
 
   final String componentName;
   final String categoryName;
@@ -270,4 +225,75 @@ class CategoryCard extends StatelessWidget {
       ],
     );
   }
+}
+
+// Define the WelcomePage here or import it from another file
+class WelcomePage extends StatelessWidget {
+  const WelcomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: <Widget>[
+        SizedBox(height: 50),
+        Text(
+          "Welcome to QuickInv! 🗄️",
+          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 30),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: 20.0),
+              child: Text(
+                "What are you looking for today?",
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: SearchBar(hintText: "Search..."),
+        ),
+        SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                "Quick Categories",
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: EdgeInsets.all(10),
+          child: Row(children: [
+            CategoryCard(categoryName: "Capacitors"),
+            CategoryCard(categoryName: "Resistors")
+          ]),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Text("View all components", style: TextStyle(fontSize: 20)),
+          ),
+        ),
+        Column(
+          children: [
+            ComponentCard(
+                componentName: "Resistor OHM",
+                categoryName: "Resistors",
+                imgThumbnail: "assets/resist.jpg")
+          ],
+        )
+      ],
+    );
+  }
+
 }
